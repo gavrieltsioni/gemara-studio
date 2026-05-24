@@ -176,16 +176,22 @@ button:hover{background:#182231}
   border-bottom:1px dashed #4a5363;
   min-height:31px;
 }
-.translation-line:empty:before{content:"Translation...";color:#776f61;pointer-events:none}
+.translation-line:empty:before{content:"Translation/notes...";color:#776f61;pointer-events:none}
 .added{color:var(--blue);font-weight:700}
 .toolbar{
   width:126px;
   display:flex;
   flex-direction:column;
+  background:var(--panel-2);
+}
+.toolbarInner{
+  display:flex;
+  flex-direction:column;
   align-items:center;
   gap:12px;
   padding:16px 14px;
-  background:var(--panel-2);
+  min-height:100%;
+  width:100%;
 }
 .toolbar h3{margin:5px 0 2px;font-size:11px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase}
 .color-btn{
@@ -254,6 +260,42 @@ button:hover{background:#182231}
   font-size:13px;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.fontControls{
+  margin-top:auto;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  width:100%;
+  padding-top:8px;
+  display:flex;
+  flex-direction:row;
+  gap:8px;
+  z-index:80;
+}
+.fontBtn{
+  width:42px;
+  height:42px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:#0f141c;
+  color:var(--text);
+  font-size:22px;
+  line-height:1;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.fontBtn:hover{background:#182231}
+.storageWarning{
+  margin-top:auto;
+  width:100%;
+  padding:10px 10px 0;
+  color:#8f99ab;
+  font-size:11px;
+  line-height:1.45;
+  text-align:center;
+}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:rgba(148,163,184,.28);border-radius:999px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -294,22 +336,36 @@ button:hover{background:#182231}
   </main>
 
   <aside class="panel toolbar">
-    <h3>Tools</h3>
-    <button id="translateBtn">Jastrow</button>
-    <button id="sefariaSearchBtn">Sefaria</button>
-    <h3>Marker</h3>
-    <div class="color-btn" title="Yellow" data-color="yellow" style="background:#fde68a"></div>
-    <div class="color-btn" title="Green" data-color="green" style="background:#bbf7d0"></div>
-    <div class="color-btn" title="Pink" data-color="pink" style="background:#fbcfe8"></div>
-    <div class="color-btn" title="Blue" data-color="blue" style="background:#bfdbfe"></div>
-    <button id="clearSelectedBtn">Clear Selected</button>
-    <button id="clearBtn">Clear All</button>
+    <div class="toolbarInner">
+      <h3>Tools</h3>
+      <button id="translateBtn">Jastrow</button>
+      <button id="sefariaSearchBtn">Sefaria</button>
+      <h3>Marker</h3>
+      <div class="color-btn" title="Yellow" data-color="yellow" style="background:#fde68a"></div>
+      <div class="color-btn" title="Green" data-color="green" style="background:#bbf7d0"></div>
+      <div class="color-btn" title="Pink" data-color="pink" style="background:#fbcfe8"></div>
+      <div class="color-btn" title="Blue" data-color="blue" style="background:#bfdbfe"></div>
+      <button id="clearSelectedBtn">Clear Selected</button>
+      <button id="clearBtn">Clear All</button>
+      <div class="storageWarning">
+        Notes, highlights, and edits are stored only in this browser. Clearing browser site data/cache may erase them.
+      </div>
+      <div class="fontControls" aria-label="Font size controls">
+        <button id="fontDecreaseBtn" class="fontBtn">−</button>
+        <button id="fontIncreaseBtn" class="fontBtn">+</button>
+      </div>
+    </div>
   </aside>
 </div>
+
 <div id="lookupBox" class="lookupBox">
-  <div class="lookupHead"><span id="lookupTitle">Jastrow</span><button id="lookupClose" class="lookupClose">×</button></div>
+  <div class="lookupHead">
+    <span id="lookupTitle">Jastrow</span>
+    <button id="lookupClose" class="lookupClose">×</button>
+  </div>
   <div id="lookupResult" class="lookupResult"></div>
 </div>
+
 <div id="toast" class="toast"></div>
 
 <script>
@@ -341,6 +397,7 @@ let saveTimer=null;
 let undoStack=[];
 let redoStack=[];
 let suppressHistory=false;
+let currentFontSize=parseInt(localStorage.getItem('gemara_font_size') || '22',10);
 
 function showToast(msg){
   toast.textContent=msg;
@@ -352,8 +409,16 @@ function setStatus(msg){statusEl.textContent=msg}
 function currentRef(){return `${masechetSelect.value}.${dafSelect.value}`}
 function storageKey(){return `daf_${currentRef()}`}
 function notesStorageKey(){return `notes_${currentRef()}`}
+function lastRefStorageKey(){return 'gemara_studio_last_ref'}
 function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
 function protectText(text){return String(text).split('').map(ch=>`<span data-original="1">${escapeHtml(ch)}</span>`).join('')}
+function applyFontSize(){
+  mainArea.style.fontSize=currentFontSize+'px';
+  mainArea.querySelectorAll('.translation-line').forEach(el=>{
+    el.style.fontSize=currentFontSize+'px';
+  });
+  localStorage.setItem('gemara_font_size',String(currentFontSize));
+}
 function normalizeEditableRows(){
   mainArea.contentEditable='false';
   mainArea.querySelectorAll('.segment').forEach(row=>{row.contentEditable='true';row.spellcheck=false});
@@ -385,7 +450,7 @@ masechtot.forEach(([name])=>{
   opt.textContent=name;
   masechetSelect.appendChild(opt);
 });
-function populateDafim(){
+function populateDafim(selectedDaf){
   dafSelect.innerHTML='';
   const total=masechtot.find(m=>m[0]===masechetSelect.value)[1];
   for(let i=2;i<=total;i++){
@@ -396,13 +461,27 @@ function populateDafim(){
       dafSelect.appendChild(opt);
     }
   }
+  if(selectedDaf && [...dafSelect.options].some(o=>o.value===selectedDaf)){
+    dafSelect.value=selectedDaf;
+  }
 }
-masechetSelect.addEventListener('change',populateDafim);
-populateDafim();
+function restoreLastRefSelection(){
+  const last=localStorage.getItem(lastRefStorageKey());
+  if(!last) return false;
+  const daf=last.split('.').pop();
+  const masechet=last.slice(0,last.length-daf.length-1);
+  if(!masechtot.some(m=>m[0]===masechet)) return false;
+  masechetSelect.value=masechet;
+  populateDafim(daf);
+  return true;
+}
+masechetSelect.addEventListener('change',()=>populateDafim());
+if(!restoreLastRefSelection()) populateDafim();
 
 function saveNow(){
   localStorage.setItem(storageKey(),mainArea.innerHTML);
   localStorage.setItem(notesStorageKey(),notesContent.value);
+  localStorage.setItem(lastRefStorageKey(),currentRef());
   setStatus('Saved');
 }
 function pushHistory(){
@@ -417,6 +496,7 @@ function restoreHistoryState(html){
   suppressHistory=true;
   mainArea.innerHTML=html;
   normalizeEditableRows();
+    applyFontSize();
   suppressHistory=false;
   saveNow();
 }
@@ -424,6 +504,7 @@ function scheduleSave(){clearTimeout(saveTimer);setStatus('Editing...');saveTime
 function commitHistory(){pushHistory();scheduleSave()}
 
 async function loadText(){
+  localStorage.setItem(lastRefStorageKey(),currentRef());
   const ref=currentRef();
   const saved=localStorage.getItem(storageKey());
   notesContent.value=localStorage.getItem(notesStorageKey()) || '';
@@ -432,6 +513,7 @@ async function loadText(){
   if(saved){
     mainArea.innerHTML=saved;
     normalizeEditableRows();
+    applyFontSize();
     undoStack=[mainArea.innerHTML];
     redoStack=[];
     setStatus(`Restored ${ref}; loading English...`);
@@ -469,6 +551,7 @@ async function loadText(){
         mainArea.appendChild(t);
       });
       normalizeEditableRows();
+    applyFontSize();
     }
 
     englishContent.innerHTML='';
@@ -770,6 +853,16 @@ document.getElementById('clearBtn').addEventListener('click',()=>{
   showToast('Highlights cleared');
 });
 
+document.getElementById('fontIncreaseBtn').addEventListener('click',()=>{
+  currentFontSize=Math.min(42,currentFontSize+2);
+  applyFontSize();
+});
+document.getElementById('fontDecreaseBtn').addEventListener('click',()=>{
+  currentFontSize=Math.max(14,currentFontSize-2);
+  applyFontSize();
+});
+
+applyFontSize();
 loadText();
 </script>
 </body>
