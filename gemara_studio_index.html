@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gemara Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+Hebrew:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0d1117;
+  --panel:#141922;
+  --panel-2:#10151d;
+  --line:#2a3140;
+  --text:#f1eee6;
+  --muted:#b8ad99;
+  --accent:#b89b5e;
+  --accent-2:#264c73;
+  --blue:#4f8fd9;
+  --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  overflow:hidden;
+  color:var(--text);
+  font-family:Inter,system-ui,sans-serif;
+  background:var(--bg);
+}
+.app{height:100vh;display:flex;gap:14px;padding:14px}
+.panel{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  box-shadow:none;
+  overflow:visible;
+}
+#englishPanel,
+#notesPanel{
+  position:fixed;
+  top:14px;
+  left:14px;
+  bottom:14px;
+  width:min(420px,34vw);
+  z-index:30;
+  transform:translateX(calc(-100% + 10px));
+  transition:.32s cubic-bezier(.2,.8,.2,1);
+  display:flex;
+  flex-direction:column;
+  pointer-events:none;
+}
+#englishPanel.visible,
+#notesPanel.visible{
+  pointer-events:auto;
+}
+#englishPanel.visible,
+#notesPanel.visible{transform:translateX(0)}
+#englishTab,
+#notesTab{
+  z-index:100;
+  position:absolute;
+  left:100%;
+  transform:rotate(-90deg);
+  transform-origin:top left;
+  width:110px;
+  padding:10px 0;
+  top:50%;
+  border-radius:0 7px 7px 0;
+  background:var(--accent-2);
+  border:1px solid var(--line);
+  border-left:0;
+  box-shadow:none;
+  pointer-events:auto;
+}
+#englishTab{top:42%}
+#notesTab{top:calc(42% + 140px);background:#1f3f34}
+.panelHeader{
+  padding:16px 20px;
+  border-bottom:1px solid var(--line);
+  background:var(--panel-2);
+  color:var(--accent);
+  font-weight:700;
+  letter-spacing:.03em;
+}
+#englishContent,
+#notesContent{
+  direction:ltr;
+  padding:24px;
+  overflow:auto;
+  line-height:1.85;
+  font-size:16px;
+  color:#e7dfd0;
+}
+#notesContent{
+  flex:1;
+  width:100%;
+  border:0;
+  outline:none;
+  resize:none;
+  background:transparent;
+  font-family:Inter,system-ui,sans-serif;
+  font-size:16px;
+}
+.center{flex:1;min-width:0;display:flex;flex-direction:column}
+.controls{
+  direction:ltr;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  padding:16px;
+  border-bottom:1px solid var(--line);
+  background:var(--panel-2);
+}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;font-weight:800;white-space:nowrap}
+.logo{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:7px;
+  background:#1a2430;
+  border:1px solid var(--accent);
+  color:var(--accent);
+}
+select,button{
+  border:1px solid var(--line);
+  border-radius:7px;
+  padding:11px 14px;
+  background:#0f141c;
+  color:var(--text);
+  font-size:14px;
+  outline:none;
+}
+select{min-width:150px}
+button{cursor:pointer;font-weight:700;transition:.15s ease}
+button:hover{background:#182231}
+.primary{
+  background:var(--accent-2);
+  color:#f8f1df;
+  border-color:#3b6388;
+}
+.status{
+  padding:9px 14px;
+  border-radius:7px;
+  color:var(--muted);
+  background:#0f141c;
+  border:1px solid var(--line);
+  font-size:13px;
+  white-space:nowrap;
+}
+#mainArea{
+  flex:1;
+  direction:rtl;
+  overflow:auto;
+  padding:34px 38px 60px;
+  font-family:"Noto Serif Hebrew",Georgia,serif;
+  font-size:22px;
+  line-height:2.12;
+  caret-color:#93c5fd;
+}
+.segment{
+  margin:0 0 4px;
+  padding:11px 16px;
+  border-radius:6px;
+  transition:.15s ease;
+}
+.segment:hover{background:#171f2b}
+.translation-line{
+  direction:ltr;
+  font-family:"Noto Serif Hebrew",Georgia,serif;
+  font-size:22px;
+  line-height:2.12;
+  color:var(--text);
+  margin:2px 16px 20px;
+  padding:8px 0 9px;
+  border-bottom:1px dashed #4a5363;
+  min-height:31px;
+}
+.translation-line:empty:before{content:"Translation...";color:#776f61;pointer-events:none}
+.added{color:var(--blue);font-weight:700}
+.toolbar{
+  width:126px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  padding:16px 14px;
+  background:var(--panel-2);
+}
+.toolbar h3{margin:5px 0 2px;font-size:11px;color:var(--accent);letter-spacing:.14em;text-transform:uppercase}
+.color-btn{
+  width:46px;
+  height:46px;
+  border-radius:8px;
+  border:1px solid #3a4352;
+  cursor:pointer;
+  transition:.15s ease;
+  box-shadow:none;
+}
+.color-btn:hover{border-color:var(--accent)}
+.color-btn:active{border-color:var(--accent);transform:scale(.98)}
+#translateBtn,#sefariaSearchBtn,#clearSelectedBtn,#clearBtn{width:100%;margin-top:6px;background:#0f141c;color:#e7dfd0;border:1px solid var(--line);border-radius:7px;padding:11px 14px;font-size:14px;font-weight:700;text-align:center;text-decoration:none;display:block}
+.lookupBox{
+  display:none;
+  position:fixed;
+  right:154px;
+  top:92px;
+  width:360px;
+  max-height:62vh;
+  overflow:auto;
+  z-index:60;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:16px;
+  color:#e7dfd0;
+  line-height:1.55;
+  box-shadow:none;
+}
+.lookupBox.visible{display:block}
+.lookupHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  color:var(--accent);
+  font-weight:700;
+  margin-bottom:10px;
+}
+.lookupClose{
+  padding:4px 8px;
+  border-radius:6px;
+}
+.lookupResult a{color:#9fc2ee;text-decoration:none}
+.lookupResult a:hover{text-decoration:underline}
+.highlight-yellow{background:rgba(253,230,138,.34);color:inherit;border-radius:2px}
+.highlight-green{background:rgba(187,247,208,.28);color:inherit;border-radius:2px}
+.highlight-pink{background:rgba(251,207,232,.28);color:inherit;border-radius:2px}
+.highlight-blue{background:rgba(191,219,254,.28);color:inherit;border-radius:2px}
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:22px;
+  transform:translateX(-50%) translateY(20px);
+  opacity:0;
+  pointer-events:none;
+  padding:10px 14px;
+  border-radius:7px;
+  background:#0f141c;
+  border:1px solid var(--line);
+  color:#e7dfd0;
+  box-shadow:none;
+  transition:.2s ease;
+  font-size:13px;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:rgba(148,163,184,.28);border-radius:999px}
+::-webkit-scrollbar-track{background:transparent}
+@media(max-width:900px){
+  .app{padding:8px;gap:8px}
+  #englishPanel,
+  #notesPanel{left:8px;width:min(390px,72vw)}
+  .toolbar{width:88px}
+  .brand{display:none}
+  .controls{flex-wrap:wrap}
+  #mainArea{padding:22px;font-size:20px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="englishPanel" class="panel">
+    <button id="englishTab" title="Toggle English">English</button>
+    <div class="panelHeader">English</div>
+    <div id="englishContent"></div>
+  </aside>
+
+  <aside id="notesPanel" class="panel">
+    <button id="notesTab" title="Toggle Notes">Notes</button>
+    <div class="panelHeader">Notes</div>
+    <textarea id="notesContent" placeholder="Notes for this daf..."></textarea>
+  </aside>
+
+  <main class="panel center">
+    <div class="controls">
+      <div class="brand"><div class="logo">דף</div><span>Gemara Studio</span></div>
+      <select id="masechetSelect"></select>
+      <select id="dafSelect"></select>
+      <button id="loadBtn" class="primary">Load</button>
+      <span id="status" class="status">Ready</span>
+    </div>
+    <div id="mainArea" contenteditable="false" spellcheck="false"></div>
+  </main>
+
+  <aside class="panel toolbar">
+    <h3>Tools</h3>
+    <button id="translateBtn">Jastrow</button>
+    <button id="sefariaSearchBtn">Sefaria</button>
+    <h3>Marker</h3>
+    <div class="color-btn" title="Yellow" data-color="yellow" style="background:#fde68a"></div>
+    <div class="color-btn" title="Green" data-color="green" style="background:#bbf7d0"></div>
+    <div class="color-btn" title="Pink" data-color="pink" style="background:#fbcfe8"></div>
+    <div class="color-btn" title="Blue" data-color="blue" style="background:#bfdbfe"></div>
+    <button id="clearSelectedBtn">Clear Selected</button>
+    <button id="clearBtn">Clear All</button>
+  </aside>
+</div>
+<div id="lookupBox" class="lookupBox">
+  <div class="lookupHead"><span id="lookupTitle">Jastrow</span><button id="lookupClose" class="lookupClose">×</button></div>
+  <div id="lookupResult" class="lookupResult"></div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+const masechtot=[
+["Berakhot",64],["Shabbat",157],["Eruvin",105],["Pesachim",121],["Shekalim",22],["Yoma",88],
+["Sukkah",56],["Beitzah",40],["Rosh Hashanah",35],["Taanit",31],["Megillah",32],["Moed Katan",29],
+["Chagigah",27],["Yevamot",122],["Ketubot",112],["Nedarim",91],["Nazir",66],["Sotah",49],
+["Gittin",90],["Kiddushin",82],["Bava Kamma",119],["Bava Metzia",119],["Bava Batra",176],
+["Sanhedrin",113],["Makkot",24],["Shevuot",49],["Avodah Zarah",76],["Horayot",14],["Zevachim",120],
+["Menachot",110],["Chullin",142],["Bekhorot",61],["Arakhin",34],["Temurah",34],["Keritot",28],
+["Meilah",22],["Tamid",10],["Niddah",73]
+];
+
+const masechetSelect=document.getElementById('masechetSelect');
+const dafSelect=document.getElementById('dafSelect');
+const mainArea=document.getElementById('mainArea');
+const englishContent=document.getElementById('englishContent');
+const englishPanel=document.getElementById('englishPanel');
+const notesPanel=document.getElementById('notesPanel');
+const notesContent=document.getElementById('notesContent');
+const statusEl=document.getElementById('status');
+const toast=document.getElementById('toast');
+const lookupBox=document.getElementById('lookupBox');
+const lookupTitle=document.getElementById('lookupTitle');
+const lookupResult=document.getElementById('lookupResult');
+let savedSelectionRange=null;
+let savedSelectedText='';
+let saveTimer=null;
+let undoStack=[];
+let redoStack=[];
+let suppressHistory=false;
+
+function showToast(msg){
+  toast.textContent=msg;
+  toast.classList.add('show');
+  clearTimeout(showToast.t);
+  showToast.t=setTimeout(()=>toast.classList.remove('show'),1500);
+}
+function setStatus(msg){statusEl.textContent=msg}
+function currentRef(){return `${masechetSelect.value}.${dafSelect.value}`}
+function storageKey(){return `daf_${currentRef()}`}
+function notesStorageKey(){return `notes_${currentRef()}`}
+function escapeHtml(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function protectText(text){return String(text).split('').map(ch=>`<span data-original="1">${escapeHtml(ch)}</span>`).join('')}
+function normalizeEditableRows(){
+  mainArea.contentEditable='false';
+  mainArea.querySelectorAll('.segment').forEach(row=>{row.contentEditable='true';row.spellcheck=false});
+  mainArea.querySelectorAll('.translation-line').forEach(row=>{row.contentEditable='true';row.spellcheck=true});
+}
+
+function unwrapElement(el){
+  if(!el || !el.parentNode) return;
+  const parent=el.parentNode;
+  while(el.firstChild) parent.insertBefore(el.firstChild,el);
+  parent.removeChild(el);
+  parent.normalize();
+}
+
+function runSelfTests(){
+  const host=document.createElement('div');
+  host.innerHTML='a<span class="highlight-yellow">bc</span>d';
+  const mark=host.querySelector('.highlight-yellow');
+  unwrapElement(mark);
+  console.assert(host.innerHTML==='abcd','unwrapElement should remove wrapper and keep text');
+  unwrapElement(null);
+  console.assert(true,'unwrapElement should ignore null safely');
+}
+runSelfTests();
+
+masechtot.forEach(([name])=>{
+  const opt=document.createElement('option');
+  opt.value=name;
+  opt.textContent=name;
+  masechetSelect.appendChild(opt);
+});
+function populateDafim(){
+  dafSelect.innerHTML='';
+  const total=masechtot.find(m=>m[0]===masechetSelect.value)[1];
+  for(let i=2;i<=total;i++){
+    for(const side of ['a','b']){
+      const opt=document.createElement('option');
+      opt.value=`${i}${side}`;
+      opt.textContent=`${i}${side}`;
+      dafSelect.appendChild(opt);
+    }
+  }
+}
+masechetSelect.addEventListener('change',populateDafim);
+populateDafim();
+
+function saveNow(){
+  localStorage.setItem(storageKey(),mainArea.innerHTML);
+  localStorage.setItem(notesStorageKey(),notesContent.value);
+  setStatus('Saved');
+}
+function pushHistory(){
+  if(suppressHistory) return;
+  const current=mainArea.innerHTML;
+  if(undoStack[undoStack.length-1]===current) return;
+  undoStack.push(current);
+  if(undoStack.length>120) undoStack.shift();
+  redoStack=[];
+}
+function restoreHistoryState(html){
+  suppressHistory=true;
+  mainArea.innerHTML=html;
+  normalizeEditableRows();
+  suppressHistory=false;
+  saveNow();
+}
+function scheduleSave(){clearTimeout(saveTimer);setStatus('Editing...');saveTimer=setTimeout(saveNow,300)}
+function commitHistory(){pushHistory();scheduleSave()}
+
+async function loadText(){
+  const ref=currentRef();
+  const saved=localStorage.getItem(storageKey());
+  notesContent.value=localStorage.getItem(notesStorageKey()) || '';
+  englishContent.innerHTML='<div style="color:#a8b3cf">Loading English…</div>'; 
+
+  if(saved){
+    mainArea.innerHTML=saved;
+    normalizeEditableRows();
+    undoStack=[mainArea.innerHTML];
+    redoStack=[];
+    setStatus(`Restored ${ref}; loading English...`);
+    showToast('Restored saved daf');
+  }else{
+    setStatus(`Loading ${ref}...`);
+    mainArea.innerHTML='<div class="segment">Loading…</div>';
+  }
+
+  const url=`https://www.sefaria.org/api/v3/texts/${encodeURIComponent(ref)}?version=source&version=english&return_format=text_only`;
+  try{
+    const res=await fetch(url);
+    if(!res.ok) throw new Error('Network error');
+    const data=await res.json();
+    const versions=data.versions||[];
+    const he=versions.find(v=>v.direction==='rtl')||versions[0];
+    const en=versions.find(v=>v.direction==='ltr');
+
+    if(!saved){
+      mainArea.innerHTML='';
+      const hebrewText=Array.isArray(he?.text)?he.text:[he?.text||'No Hebrew text found.'];
+      hebrewText.forEach(seg=>{
+        const d=document.createElement('div');
+        d.className='segment';
+        d.contentEditable='true';
+        d.spellcheck=false;
+        d.innerHTML=protectText(seg);
+
+        const t=document.createElement('div');
+        t.className='translation-line';
+        t.contentEditable='true';
+        t.spellcheck=true;
+
+        mainArea.appendChild(d);
+        mainArea.appendChild(t);
+      });
+      normalizeEditableRows();
+    }
+
+    englishContent.innerHTML='';
+    if(en?.text){
+      const englishText=Array.isArray(en.text)?en.text:[en.text];
+      englishText.forEach(seg=>{
+        const p=document.createElement('div');
+        p.style.marginBottom='16px';
+        p.innerHTML=seg;
+        englishContent.appendChild(p);
+      });
+    }else{
+      englishContent.innerHTML='<div style="color:#a8b3cf">No English translation returned by Sefaria.</div>';
+    }
+
+    undoStack=[mainArea.innerHTML];
+    redoStack=[];
+    saveNow();
+    setStatus(saved ? `Restored ${ref}` : `Loaded ${ref}`);
+  }catch(err){
+    if(!saved) mainArea.innerHTML='<div class="segment">Could not load text. Sefaria may be unreachable from this environment.</div>';
+    englishContent.innerHTML='<div style="color:#fca5a5">Could not load English translation from Sefaria.</div>';
+    setStatus(saved ? `Restored ${ref}; English unavailable` : 'Load failed');
+  }
+}
+
+document.getElementById('loadBtn').addEventListener('click',loadText);
+document.getElementById('englishTab').addEventListener('click',()=>{
+  notesPanel.classList.remove('visible');
+  englishPanel.classList.toggle('visible');
+});
+document.getElementById('notesTab').addEventListener('click',()=>{
+  englishPanel.classList.remove('visible');
+  notesPanel.classList.toggle('visible');
+});
+notesContent.addEventListener('input',scheduleSave);
+mainArea.addEventListener('input',()=>{pushHistory();scheduleSave()});
+
+function isInTranslation(node){return node?.nodeType===1 ? node.closest('.translation-line') : node?.parentElement?.closest('.translation-line')}
+function isAddedContext(node){return node?.nodeType===1 ? node.closest('.added') : node?.parentElement?.closest('.added')}
+function rememberSelection(){
+  const sel=window.getSelection();
+  if(sel.rangeCount && !sel.isCollapsed && mainArea.contains(sel.anchorNode) && mainArea.contains(sel.focusNode)){
+    savedSelectionRange=sel.getRangeAt(0).cloneRange();
+    savedSelectedText=sel.toString();
+  }
+}
+function getWorkingRange(){
+  const sel=window.getSelection();
+  if(sel.rangeCount && !sel.isCollapsed && mainArea.contains(sel.anchorNode) && mainArea.contains(sel.focusNode)){
+    savedSelectionRange=sel.getRangeAt(0).cloneRange();
+    return sel.getRangeAt(0);
+  }
+  return savedSelectionRange;
+}
+function clearSelectionVisual(){window.getSelection().removeAllRanges()}
+function getHighlightAncestor(node){
+  const el=node?.nodeType===1 ? node : node?.parentElement;
+  return el?.closest?.('.highlight-yellow,.highlight-green,.highlight-pink,.highlight-blue');
+}
+function applyHighlight(color){
+  const range=getWorkingRange();
+  if(!range){showToast('Select text first');return}
+
+  const fragment=range.extractContents();
+  const span=document.createElement('span');
+  span.className=`highlight-${color}`;
+  span.appendChild(fragment);
+
+  range.insertNode(span);
+  clearSelectionVisual();
+  savedSelectionRange=null;
+  commitHistory();
+}
+function clearHighlightsInRange(){
+  const range=getWorkingRange();
+  if(!range){showToast('Select highlighted text first');return}
+  const highlights=[...mainArea.querySelectorAll('.highlight-yellow,.highlight-green,.highlight-pink,.highlight-blue')]
+    .filter(el=>range.intersectsNode(el));
+  const startHighlight=getHighlightAncestor(range.startContainer);
+  const endHighlight=getHighlightAncestor(range.endContainer);
+  if(startHighlight && !highlights.includes(startHighlight)) highlights.push(startHighlight);
+  if(endHighlight && !highlights.includes(endHighlight)) highlights.push(endHighlight);
+  if(!highlights.length){showToast('No highlights in selection');return}
+  highlights.forEach(unwrapElement);
+  clearSelectionVisual();
+  savedSelectionRange=null;
+  commitHistory();
+  showToast('Selected highlights cleared');
+}
+function getSelectedWord(){
+  const range=getWorkingRange();
+  if(!range) return '';
+  return range.toString()
+    .replace(/[֑-ׇ]/g,'')
+    .replace(/[־׃.,;:!?()[\]{}"'“”‘’]/g,'')
+    .trim();
+}
+function flattenText(value){
+  if(Array.isArray(value)) return value.map(flattenText).join(' ');
+  if(value && typeof value==='object') return flattenText(Object.values(value));
+  return value ? String(value) : '';
+}
+function stripHtml(html){
+  const div=document.createElement('div');
+  div.innerHTML=html;
+  return div.textContent || div.innerText || '';
+}
+function unvowelHebrew(word){
+  return String(word).replace(/[֑-ׇ]/g,'').trim();
+}
+function normalizeJastrowWord(word){
+  const clean=unvowelHebrew(word).replace(/[־׃.,;:!?()[\]{}"'“”‘’]/g,'').trim();
+  const known={
+    'מאי':'מַאי'
+  };
+  return known[clean] || word.trim();
+}
+function formatJastrowEntry(entry, fallbackWord){
+  const headword=entry.headword || entry.parent_headword || entry.word || fallbackWord;
+  const ref=(entry.ref && !/^V\d+/i.test(entry.ref)) ? entry.ref : `Jastrow, ${headword}.1`;
+  const raw=entry.content || entry.definition || entry.text || entry.senses || entry;
+  const text=stripHtml(flattenText(raw)).trim();
+  return {headword, ref, urlRef:`Jastrow, ${headword}.1`, text};
+}
+async function fetchJastrowByWord(word){
+  const candidates=[...new Set([word, normalizeJastrowWord(word), unvowelHebrew(word)].filter(Boolean))];
+
+  for(const candidate of candidates){
+    try{
+      const res=await fetch(`https://www.sefaria.org/api/words/${encodeURIComponent(candidate)}`);
+      if(!res.ok) continue;
+      const data=await res.json();
+      const entries=Array.isArray(data) ? data : (data.results || data.entries || []);
+      const jastrow=entries.find(e=>/Jastrow/i.test(flattenText(e.parent_lexicon || e.lexicon || e.dictionary || e.ref || e.rid || e))) || entries[0];
+      if(jastrow) return formatJastrowEntry(jastrow,candidate);
+    }catch(err){}
+  }
+
+  try{
+    const completionRes=await fetch(`https://www.sefaria.org/api/words/completion/${encodeURIComponent(unvowelHebrew(word))}/Jastrow%20Dictionary`);
+    if(completionRes.ok){
+      const completions=await completionRes.json();
+      const pair=Array.isArray(completions) ? completions[0] : null;
+      const completed=Array.isArray(pair) ? (pair[1] || pair[0]) : '';
+      if(completed && completed!==word) return await fetchJastrowByWord(completed);
+    }
+  }catch(err){}
+
+  return null;
+}
+function sefariaSearchUrl(word){
+  return `https://www.sefaria.org/search?q=${encodeURIComponent(word)}&tab=text&tvar=1&tsort=relevance&svar=1&ssort=relevance&with=Jastrow%20Dictionary`;
+}
+function selectedSefariaUrl(){
+  const text=(savedSelectedText || getSelectedWord()).trim();
+  return text ? `https://www.sefaria.org/search?q=${encodeURIComponent(text)}` : '';
+}
+function openSelectedInSefaria(){
+  const url=selectedSefariaUrl();
+  if(!url){
+    showToast('Select text first');
+    return;
+  }
+  const link=document.createElement('a');
+  link.href=url;
+  link.target='_blank';
+  link.rel='noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+async function translateSelectedWord(){
+  const word=getSelectedWord();
+  if(!word){showToast('Select a word first');return;}
+
+  lookupTitle.textContent=`Jastrow: ${word}`;
+  lookupResult.innerHTML='Looking up in Jastrow…';
+  lookupBox.classList.add('visible');
+  setStatus(`Looking up ${word}...`);
+
+  const entry=await fetchJastrowByWord(word);
+  if(entry){
+    const displayText=entry.text || 'Found the Jastrow entry, but Sefaria did not return preview text.';
+    lookupResult.innerHTML=`<div style="margin-bottom:10px;color:var(--muted)">${escapeHtml(entry.ref || entry.headword)}</div><div>${escapeHtml(displayText)}</div><div style="margin-top:12px"><a target="_blank" rel="noopener noreferrer" href="https://www.sefaria.org/${encodeURIComponent(entry.urlRef || entry.ref).replace(/%2C/g,',').replace(/%20/g,'_')}">Open Jastrow entry</a></div>`;
+    setStatus('Lookup complete');
+    return;
+  }
+
+  lookupResult.innerHTML=`No Jastrow result found for <b>${escapeHtml(word)}</b>.`;
+  setStatus('No lookup result');
+}
+
+mainArea.addEventListener('beforeinput',e=>{
+  const sel=window.getSelection();
+  if(!sel.rangeCount) return;
+  const range=sel.getRangeAt(0);
+  const node=range.startContainer;
+
+  if(isInTranslation(node)){
+    if(e.inputType==='insertParagraph'){
+      e.preventDefault();
+      document.execCommand('insertLineBreak');
+      commitHistory();
+    }
+    return;
+  }
+
+  if(e.inputType && e.inputType.startsWith('delete')){
+    if(isAddedContext(node)) return;
+    e.preventDefault();
+    showToast('Original text is protected');
+    return;
+  }
+
+  if(e.inputType==='insertText'){
+    e.preventDefault();
+    const span=document.createElement('span');
+    span.className='added';
+    span.textContent=e.data||'';
+    range.deleteContents();
+    range.insertNode(span);
+    range.setStartAfter(span);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    commitHistory();
+  }
+
+  if(e.inputType==='insertFromPaste'){
+    e.preventDefault();
+    const text=(e.clipboardData||window.clipboardData).getData('text');
+    const span=document.createElement('span');
+    span.className='added';
+    span.textContent=text;
+    range.deleteContents();
+    range.insertNode(span);
+    range.setStartAfter(span);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    commitHistory();
+  }
+});
+
+mainArea.addEventListener('cut',e=>{
+  const sel=window.getSelection();
+  if(!isInTranslation(sel.anchorNode)){
+    e.preventDefault();
+    showToast('Cut is blocked for original text');
+  }
+});
+mainArea.addEventListener('mouseup',rememberSelection);
+mainArea.addEventListener('keyup',rememberSelection);
+document.addEventListener('selectionchange',rememberSelection);
+
+document.getElementById('translateBtn').addEventListener('mousedown',e=>e.preventDefault());
+document.getElementById('translateBtn').addEventListener('click',translateSelectedWord);
+document.getElementById('sefariaSearchBtn').addEventListener('mousedown',e=>e.preventDefault());
+document.getElementById('sefariaSearchBtn').addEventListener('click',openSelectedInSefaria);
+document.getElementById('lookupClose').addEventListener('click',()=>lookupBox.classList.remove('visible'));
+
+
+document.querySelectorAll('.color-btn').forEach(btn=>{
+  btn.addEventListener('mousedown',e=>e.preventDefault());
+  btn.addEventListener('click',()=>applyHighlight(btn.dataset.color));
+});
+
+window.addEventListener('keydown',e=>{
+  const mod=e.metaKey || e.ctrlKey;
+  if(!mod) return;
+
+  if(e.key.toLowerCase()==='z' && !e.shiftKey){
+    e.preventDefault();
+    if(undoStack.length<=1) return;
+    const current=undoStack.pop();
+    redoStack.push(current);
+    restoreHistoryState(undoStack[undoStack.length-1]);
+    showToast('Undo');
+  }
+
+  if((e.key.toLowerCase()==='z' && e.shiftKey) || e.key.toLowerCase()==='y'){
+    e.preventDefault();
+    if(!redoStack.length) return;
+    const next=redoStack.pop();
+    undoStack.push(next);
+    restoreHistoryState(next);
+    showToast('Redo');
+  }
+},true);
+
+document.getElementById('clearSelectedBtn').addEventListener('mousedown',e=>e.preventDefault());
+document.getElementById('clearSelectedBtn').addEventListener('click',clearHighlightsInRange);
+
+document.getElementById('clearBtn').addEventListener('click',()=>{
+  mainArea.querySelectorAll('.highlight-yellow,.highlight-green,.highlight-pink,.highlight-blue').forEach(unwrapElement);
+  commitHistory();
+  showToast('Highlights cleared');
+});
+
+loadText();
+</script>
+</body>
+</html>
